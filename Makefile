@@ -8,7 +8,7 @@ EE_OBJS = src/main.o src/ui.o src/storage.o src/sha256.o src/installer.o \
 EE_LIBS = lib/libmc-xfrom.a -lfileXio -lpad -ldebug -lpatches -lcdvd
 EE_INCS = -Iinclude -I$(PS2SDK)/ports/include
 EE_CFLAGS = -std=gnu11 -Wall -Wextra -Werror -fdata-sections -ffunction-sections
-EE_LDFLAGS = -Wl,--gc-sections
+EE_LDFLAGS = -Wl,--gc-sections -fno-lto
 
 IRX_MODULES = iomanX fileXio ps2dev9 ps2atad ps2hdd ps2fs dvrdrv dvrfile usbd usbhdfsd
 XFROM_MODULES = extflash xfromman xfromserv
@@ -38,3 +38,5 @@ $(addsuffix _irx.c,$(XFROM_MODULES)): %_irx.c: irx/%.irx
 
 include $(PS2SDK)/samples/Makefile.pref
 include $(PS2SDK)/samples/Makefile.eeglobal
+EE_DBGINFOFLAGS = -gdwarf-2
+EE_DBGINFOFLAGS = -gdwarf-2 -gz=zlib
