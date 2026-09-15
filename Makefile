@@ -4,7 +4,7 @@ EE_OBJS = src/main.o src/ui.o src/storage.o src/sha256.o src/installer.o \
 	src/direct_ready40.o src/direct_ready40_multi.o \
 	src/capacity_profile.o \
 	src/psx1_inspector.o src/psx1_format_test.o \
-	src/psx1_pipeline.o src/game_installer.o
+	src/psx1_pipeline.o src/game_installer.o src/game_installer_ui.o
 EE_LIBS = lib/libmc-xfrom.a -lfileXio -lpad -ldebug -lpatches -lcdvd
 EE_INCS = -Iinclude -I$(PS2SDK)/ports/include
 EE_CFLAGS = -std=gnu11 -Wall -Wextra -Werror -fdata-sections -ffunction-sections

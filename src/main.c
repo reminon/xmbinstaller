@@ -13,6 +13,7 @@
 #include "direct_ready40.h"
 #include "direct_ready40_multi.h"
 #include "psx1_pipeline.h"
+void run_game_installer_ui(const void *pad);
 #include "storage.h"
 #include "ui.h"
 
@@ -24,7 +25,8 @@
 typedef enum selected_revision {
     REVISION_NONE = 0,
     REVISION_PSX1,
-    REVISION_PSX2
+    REVISION_PSX2,
+    REVISION_INSTALL,
 } selected_revision_t;
 
 typedef struct pad_diagnostics {
@@ -80,7 +82,7 @@ static void draw_selector(void)
     ui_set_position(UI_SAFE_LEFT, 172);
     ui_inverse_status("L1 = PSX1                 R1 = PSX2");
     ui_set_position(UI_SAFE_LEFT, 204);
-    ui_printf("O Exit");
+    ui_printf("O Exit    Triangle = Install Games");
     ui_sync();
 }
 
@@ -107,6 +109,8 @@ static selected_revision_t select_revision(const pad_diagnostics_t *pad)
                 return REVISION_PSX2;
             } else if ((pressed & PAD_CIRCLE) != 0) {
                 return REVISION_NONE;
+            } else if ((pressed & PAD_TRIANGLE) != 0) {
+                return REVISION_INSTALL;
             }
         }
         DelayThread(16000);
@@ -632,6 +636,8 @@ int main(int argc, char **argv)
     revision = select_revision(&pad);
     if (revision == REVISION_PSX1) {
         run_psx1_ui(&pad);
+    } else if (revision == REVISION_INSTALL) {
+        run_game_installer_ui(&pad);
     } else if (revision == REVISION_PSX2) {
         ui_begin();
         ui_printf(PROGRAM_TITLE "\nPSX2 - Second Revision\n\n");
