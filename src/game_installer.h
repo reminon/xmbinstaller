@@ -28,3 +28,4 @@ int game_extract_id(const char *iso_path, char id_out[GAME_INSTALLER_MAX_ID]);
 
 int game_create_hdl_partition(const char *game_name, u32 size_in_mb);
 int game_create_pp_partition(const char *game_name);
+int game_write_iso(const char *iso_path, const char *game_name, u32 size_in_mb);
