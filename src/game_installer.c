@@ -158,3 +158,92 @@ int game_write_iso(const char *iso_path, const char *game_name,
     fileXioClose(iso_fd);
     return result;
 }
+
+#define HDL_MAGIC        0xdeadfeed
+#define HDL_GAME_OFFSET  0x100000
+
+int game_write_hdl_header(const char *game_name, const char *startup,
+                          const char *title, u32 size_in_kb, u32 disc_type)
+{
+    static unsigned char hdl_buf[1024] __attribute__((aligned(64)));
+    static unsigned char ata_write[sizeof(hddAtaTransfer_t) + 1024] __attribute__((aligned(64)));
+    hddAtaTransfer_t *xfer = (hddAtaTransfer_t *)ata_write;
+    iox_stat_t stat;
+    char part_path[256];
+    u32 lba;
+    int result;
+
+    /* get partition start LBA */
+    snprintf(part_path, sizeof(part_path), "hdd0:__%s", game_name);
+    result = fileXioGetStat(part_path, &stat);
+    if (result < 0)
+        return result;
+    lba = stat.private_0;
+
+    /* build HDL header */
+    memset(hdl_buf, 0, sizeof(hdl_buf));
+    *(u32 *)(hdl_buf + 0x00) = HDL_MAGIC;
+    *(u32 *)(hdl_buf + 0x04) = 0x1337; /* HDL_FS_MAGIC */
+    strncpy((char *)(hdl_buf + 0x08), title, 159);
+    strncpy((char *)(hdl_buf + 0xa8), startup, 59);
+    *(u32 *)(hdl_buf + 0xe4) = disc_type;
+    *(u32 *)(hdl_buf + 0xe8) = 1; /* num_partitions */
+    *(u32 *)(hdl_buf + 0xec) = 0; /* part_offset MB */
+    *(u32 *)(hdl_buf + 0xf0) = lba + HDL_HEADER_SECTORS; /* data_start */
+    *(u32 *)(hdl_buf + 0xf4) = size_in_kb;
+
+    /* write 2 sectors at partition start */
+    xfer->lba = lba;
+    xfer->size = 2;
+    memcpy(xfer->data, hdl_buf, 1024);
+
+    return fileXioDevctl("hdd0:", HDIOC_WRITESECTOR, xfer,
+                         sizeof(hddAtaTransfer_t) + 1024, NULL, 0);
+}
+
+int game_install(const char *iso_path, const char *title)
+{
+    game_entry_t entry;
+    u32 size_in_mb, size_in_kb;
+    int result;
+
+    /* populate entry from scan */
+    memset(&entry, 0, sizeof(entry));
+    strncpy(entry.path, iso_path, sizeof(entry.path) - 1);
+    strncpy(entry.title, title, sizeof(entry.title) - 1);
+
+    /* get ISO size via stat */
+    {
+        iox_stat_t stat;
+        result = fileXioGetStat(iso_path, &stat);
+        if (result < 0)
+            return result;
+        entry.size = ((u64)stat.hisize << 32) | stat.size;
+    }
+
+    size_in_kb = (u32)(entry.size / 1024);
+    size_in_mb = (u32)((entry.size + (1024*1024 - 1)) / (1024*1024));
+
+    /* extract game ID from ISO */
+    game_extract_id(iso_path, entry.id);
+
+    /* create HDL partition */
+    result = game_create_hdl_partition(entry.title, size_in_mb);
+    if (result < 0)
+        return result;
+
+    /* write ISO data */
+    result = game_write_iso(iso_path, entry.title, size_in_mb);
+    if (result < 0)
+        return result;
+
+    /* write HDL header */
+    result = game_write_hdl_header(entry.title, entry.id[0] ? entry.id : "SLUS_000.00",
+                                   entry.title, size_in_kb, 0x14); /* 0x14 = DVD */
+    if (result < 0)
+        return result;
+
+    /* create PP partition for XMB */
+    result = game_create_pp_partition(entry.title);
+    return result;
+}
