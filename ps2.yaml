@@ -21,16 +21,24 @@ targets:
       - src/psx1_pipeline.c
       - src/game_installer.c
       - src/game_installer_ui.c
+      - src/kelf/keystore.c
+      - src/kelf/kelf_port.c
+      - src/kelf/ps2keys_dat.c
+      - src/kelf/opl_launcher.c
     include_dirs:
+      - src/kelf
       - include
       - /usr/local/ps2dev/ps2sdk/ee/include
       - /usr/local/ps2dev/ps2sdk/common/include
       - /usr/local/ps2dev/ps2sdk/ports/include
     ldflags:
       - -L/usr/local/ps2dev/ps2sdk/ee/lib
+      - -L/usr/local/ps2dev/ps2sdk/ports/lib
+      - -Wl,--undefined=opl_launcher_elf
     libs:
       - fileXio
       - pad
       - debug
       - patches
       - cdvd
+      - wolfssl

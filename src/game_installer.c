@@ -6,6 +6,7 @@
 #include <fileXio_rpc.h>
 #include <iox_stat.h>
 #include "game_installer.h"
+#include "kelf/kelf_port.h"
 
 static int ends_with_iso(const char *name)
 {
