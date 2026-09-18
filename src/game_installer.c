@@ -246,5 +246,36 @@ int game_install(const char *iso_path, const char *title)
 
     /* create PP partition for XMB */
     result = game_create_pp_partition(entry.title);
+    if (result < 0)
+        return result;
+
+    /* sign OPL-Launcher as EXECUTE.KELF */
+    result = kelf_sign_embedded_opl("hdd0:__common/EXECUTE.KELF");
+    if (result < 0)
+        return result;
+
+    /* mount PP partition and copy EXECUTE.KELF */
+    {
+        char pp_path[128];
+        char mount_cmd[256];
+        snprintf(pp_path, sizeof(pp_path), "hdd0:PP.%s", entry.title);
+        /* mount, put EXECUTE.KELF, unmount via fileXio */
+        result = fileXioMount("pfs0:", pp_path, FIO_MT_RDWR);
+        if (result >= 0) {
+            /* copy EXECUTE.KELF into PP partition */
+            int src = fileXioOpen("hdd0:__common/EXECUTE.KELF", O_RDONLY, 0);
+            int dst = fileXioOpen("pfs0:/EXECUTE.KELF", O_WRONLY|O_CREAT|O_TRUNC, 0666);
+            if (src >= 0 && dst >= 0) {
+                static unsigned char copy_buf[4096] __attribute__((aligned(64)));
+                int n;
+                while ((n = fileXioRead(src, copy_buf, sizeof(copy_buf))) > 0)
+                    fileXioWrite(dst, copy_buf, n);
+            }
+            if (src >= 0) fileXioClose(src);
+            if (dst >= 0) fileXioClose(dst);
+            fileXioUmount("pfs0:");
+        }
+        fileXioRemove("hdd0:__common/EXECUTE.KELF");
+    }
     return result;
 }
