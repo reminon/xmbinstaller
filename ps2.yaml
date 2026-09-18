@@ -32,9 +32,13 @@ targets:
       - /usr/local/ps2dev/ps2sdk/ee/include
       - /usr/local/ps2dev/ps2sdk/common/include
       - /usr/local/ps2dev/ps2sdk/ports/include
+      - /home/remin/.local/share/ps2build/packages/world/gskit/include
+      - /home/remin/.local/share/ps2build/packages/world/gskit_toolkit/include
     ldflags:
       - -L/usr/local/ps2dev/ps2sdk/ee/lib
       - -L/usr/local/ps2dev/ps2sdk/ports/lib
+      - -L/home/remin/.local/share/ps2build/packages/world/gskit/lib
+      - -L/home/remin/.local/share/ps2build/packages/world/gskit_toolkit/lib
       - -Wl,--undefined=opl_launcher_elf
     libs:
       - fileXio
@@ -42,4 +46,6 @@ targets:
       - debug
       - patches
       - cdvd
+      - gskit
+      - gskit_toolkit
       - wolfssl
