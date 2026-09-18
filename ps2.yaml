@@ -21,6 +21,7 @@ targets:
       - src/psx1_pipeline.c
       - src/game_installer.c
       - src/game_installer_ui.c
+      - src/iso_reader.c
       - src/kelf/keystore.c
       - src/kelf/kelf_port.c
       - src/kelf/ps2keys_dat.c

@@ -6,6 +6,32 @@
 #include <fileXio_rpc.h>
 #include <iox_stat.h>
 #include "game_installer.h"
+#include "iso_reader.h"
+
+/* Format game ID into HDL partition name component
+   SLUS_123.45 -> SLUS-12345 */
+static void format_hdl_id(const char *game_id, char *out, int maxlen) {
+    int i = 0, j = 0;
+    while (game_id[i] && j < maxlen-1) {
+        char ch = game_id[i++];
+        if (ch == '_') ch = '-';
+        else if (ch == '.') continue;
+        out[j++] = ch;
+    }
+    out[j] = '\0';
+}
+
+/* Format title for partition name - replace spaces with underscores */
+static void format_part_title(const char *title, char *out, int maxlen) {
+    int i = 0;
+    while (title[i] && i < maxlen-1) {
+        char ch = title[i];
+        if (ch == ' ') ch = '_';
+        out[i] = ch;
+        i++;
+    }
+    out[i] = '\0';
+}
 #include "kelf/kelf_port.h"
 
 static int ends_with_iso(const char *name)
@@ -93,7 +119,7 @@ int game_create_pp_partition(const char *game_name)
 }
 
 #define COPY_BUFFER_SECTORS 128
-#define HDL_HEADER_SECTORS  8192  /* 4MB header */
+#define HDL_HEADER_SECTORS  0x800  /* sector offset to game data */
 
 static unsigned char copy_buf[COPY_BUFFER_SECTORS * 512] __attribute__((aligned(64)));
 
@@ -181,20 +207,35 @@ int game_write_hdl_header(const char *game_name, const char *startup,
         return result;
     lba = stat.private_0;
 
-    /* build HDL header */
+    /* build proper HDL header at offset 0x100000 (sector 0x800) */
     memset(hdl_buf, 0, sizeof(hdl_buf));
-    *(u32 *)(hdl_buf + 0x00) = HDL_MAGIC;
-    *(u32 *)(hdl_buf + 0x04) = 0x1337; /* HDL_FS_MAGIC */
-    strncpy((char *)(hdl_buf + 0x08), title, 159);
-    strncpy((char *)(hdl_buf + 0xa8), startup, 59);
-    *(u32 *)(hdl_buf + 0xe4) = disc_type;
-    *(u32 *)(hdl_buf + 0xe8) = 1; /* num_partitions */
-    *(u32 *)(hdl_buf + 0xec) = 0; /* part_offset MB */
-    *(u32 *)(hdl_buf + 0xf0) = lba + HDL_HEADER_SECTORS; /* data_start */
-    *(u32 *)(hdl_buf + 0xf4) = size_in_kb;
 
-    /* write 2 sectors at partition start */
-    xfer->lba = lba;
+    /* checksum magic */
+    *(u32 *)(hdl_buf + 0x00) = 0xdeadfeed;
+    /* HDL FS magic */
+    *(u32 *)(hdl_buf + 0x04) = 0x1337;
+    /* game name */
+    strncpy((char *)(hdl_buf + 0x08), title, 159);
+    /* compat flags - default 0 */
+    hdl_buf[0xa8] = 0; /* hdl_compat_flags */
+    hdl_buf[0xa9] = 0; /* ops2l_compat_flags */
+    hdl_buf[0xaa] = 0; /* dma_type */
+    hdl_buf[0xab] = 0; /* dma_mode */
+    /* startup / game ID */
+    strncpy((char *)(hdl_buf + 0xac), startup, 59);
+    /* layer1_start = 0 */
+    *(u32 *)(hdl_buf + 0xe8) = 0;
+    /* disc type */
+    *(u32 *)(hdl_buf + 0xec) = disc_type;
+    /* num_partitions = 1 */
+    *(u32 *)(hdl_buf + 0xf0) = 1;
+    /* part_specs[0]: offset=0MB, data_start=lba+HDL_HEADER_SECTORS, size=size_in_kb */
+    *(u32 *)(hdl_buf + 0xf4) = 0;
+    *(u32 *)(hdl_buf + 0xf8) = lba + HDL_HEADER_SECTORS;
+    *(u32 *)(hdl_buf + 0xfc) = size_in_kb;
+
+    /* write 2 sectors at HDL_GAME_DATA_OFFSET (sector 0x800 from partition start) */
+    xfer->lba = lba + HDL_HEADER_SECTORS;
     xfer->size = 2;
     memcpy(xfer->data, hdl_buf, 1024);
 
@@ -226,26 +267,34 @@ int game_install(const char *iso_path, const char *title)
     size_in_mb = (u32)((entry.size + (1024*1024 - 1)) / (1024*1024));
 
     /* extract game ID from ISO */
-    game_extract_id(iso_path, entry.id);
+    iso_get_game_id(iso_path, entry.id, sizeof(entry.id));
+
+    /* build partition name: SLUS-12345..GAME_TITLE */
+    char hdl_id[32] = {0};
+    char part_title[64] = {0};
+    char part_name[96] = {0};
+    format_hdl_id(entry.id[0] ? entry.id : "SLUS-00000", hdl_id, sizeof(hdl_id));
+    format_part_title(entry.title, part_title, sizeof(part_title));
+    snprintf(part_name, sizeof(part_name), "%s..%s", hdl_id, part_title);
 
     /* create HDL partition */
-    result = game_create_hdl_partition(entry.title, size_in_mb);
+    result = game_create_hdl_partition(part_name, size_in_mb);
     if (result < 0)
         return result;
 
     /* write ISO data */
-    result = game_write_iso(iso_path, entry.title, size_in_mb);
+    result = game_write_iso(iso_path, part_name, size_in_mb);
     if (result < 0)
         return result;
 
     /* write HDL header */
-    result = game_write_hdl_header(entry.title, entry.id[0] ? entry.id : "SLUS_000.00",
+    result = game_write_hdl_header(part_name, entry.id[0] ? entry.id : "SLUS_000.00",
                                    entry.title, size_in_kb, 0x14); /* 0x14 = DVD */
     if (result < 0)
         return result;
 
     /* create PP partition for XMB */
-    result = game_create_pp_partition(entry.title);
+    result = game_create_pp_partition(part_name);
     if (result < 0)
         return result;
 
@@ -258,7 +307,7 @@ int game_install(const char *iso_path, const char *title)
     {
         char pp_path[128];
         char mount_cmd[256];
-        snprintf(pp_path, sizeof(pp_path), "hdd0:PP.%s", entry.title);
+        snprintf(pp_path, sizeof(pp_path), "hdd0:PP.%s", part_name);
         /* mount, put EXECUTE.KELF, unmount via fileXio */
         result = fileXioMount("pfs0:", pp_path, FIO_MT_RDWR);
         if (result >= 0) {
