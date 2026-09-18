@@ -1,0 +1,36 @@
+project: xmbinstaller
+ps2sdk: /usr/local/ps2dev/ps2sdk
+targets:
+  - name: xmbinstaller
+    type: ee
+    sources:
+      - src/main.c
+      - src/ui.c
+      - src/storage.c
+      - src/sha256.c
+      - src/installer.c
+      - src/bootstrap.c
+      - src/bootflag_ro.c
+      - src/bootflag.c
+      - src/activation.c
+      - src/direct_ready40.c
+      - src/direct_ready40_multi.c
+      - src/capacity_profile.c
+      - src/psx1_inspector.c
+      - src/psx1_format_test.c
+      - src/psx1_pipeline.c
+      - src/game_installer.c
+      - src/game_installer_ui.c
+    include_dirs:
+      - include
+      - /usr/local/ps2dev/ps2sdk/ee/include
+      - /usr/local/ps2dev/ps2sdk/common/include
+      - /usr/local/ps2dev/ps2sdk/ports/include
+    ldflags:
+      - -L/usr/local/ps2dev/ps2sdk/ee/lib
+    libs:
+      - fileXio
+      - pad
+      - debug
+      - patches
+      - cdvd
