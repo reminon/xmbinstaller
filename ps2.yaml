@@ -27,6 +27,20 @@ targets:
       - src/kelf/kelf_port.c
       - src/kelf/ps2keys_dat.c
       - src/kelf/opl_launcher.c
+      - src/irx/iomanX_irx.c
+      - src/irx/fileXio_irx.c
+      - src/irx/ps2dev9_irx.c
+      - src/irx/ps2atad_irx.c
+      - src/irx/ps2hdd_irx.c
+      - src/irx/ps2hdd_psx1_irx.c
+      - src/irx/ps2fs_irx.c
+      - src/irx/usbd_irx.c
+      - src/irx/usbhdfsd_irx.c
+      - src/irx/dvrdrv_irx.c
+      - src/irx/dvrfile_irx.c
+      - src/irx/extflash_irx.c
+      - src/irx/xfromman_irx.c
+      - src/irx/xfromserv_irx.c
     include_dirs:
       - src/kelf
       - include
@@ -37,16 +51,33 @@ targets:
       - /home/remin/.local/share/ps2build/packages/world/gskit_toolkit/include
     ldflags:
       - -L/usr/local/ps2dev/ps2sdk/ee/lib
+      - -L/home/remin/xmbinstaller/lib
       - -L/usr/local/ps2dev/ps2sdk/ports/lib
       - -L/home/remin/.local/share/ps2build/packages/world/gskit/lib
       - -L/home/remin/.local/share/ps2build/packages/world/gskit_toolkit/lib
       - -Wl,--undefined=opl_launcher_elf
+      - -Wl,--undefined=iomanX_irx
+      - -Wl,--undefined=fileXio_irx
+      - -Wl,--undefined=ps2dev9_irx
+      - -Wl,--undefined=ps2atad_irx
+      - -Wl,--undefined=ps2hdd_irx
+      - -Wl,--undefined=ps2hdd_psx1_irx
+      - -Wl,--undefined=ps2fs_irx
+      - -Wl,--undefined=usbd_irx
+      - -Wl,--undefined=usbhdfsd_irx
+      - -Wl,--undefined=dvrdrv_irx
+      - -Wl,--undefined=dvrfile_irx
+      - -Wl,--undefined=extflash_irx
+      - -Wl,--undefined=xfromman_irx
+      - -Wl,--undefined=xfromserv_irx
     libs:
+      - mc-xfrom
       - fileXio
       - pad
       - debug
       - patches
       - cdvd
       - gskit
+      - dmakit
       - gskit_toolkit
       - wolfssl
